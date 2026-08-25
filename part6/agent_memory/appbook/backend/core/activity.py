@@ -105,6 +105,26 @@ def operations_for(method: str, path: str) -> list[dict[str, str | None]]:
         ]
     elif path.startswith("/api/coordination/"):
         operations = [("shared_memory", "READ"), ("shared_memory", "WRITE"), ("agents", "READ")]
+    elif path.startswith("/api/unified/cache"):
+        operations = [
+            ("semantic_cache", "READ"), ("semantic_cache", "WRITE"),
+            ("conversation_memory", "READ"), ("conversation_memory", "WRITE"),
+        ]
+    elif path.startswith("/api/unified/summarize"):
+        operations = [
+            ("conversation_memory", "READ"), ("conversation_memory", "WRITE"),
+            ("summaries", "WRITE"),
+        ]
+    elif path.startswith("/api/unified/"):
+        operations = [
+            ("agents", "READ"), ("personas", "READ"),
+            ("entity_memory", "READ"), ("knowledge_base", "READ"),
+            ("conversation_memory", "READ"), ("conversation_memory", "WRITE"),
+            ("workflow_memory", "WRITE"), ("skillbox", "READ"),
+            ("semantic_cache", "READ"), ("semantic_cache", "WRITE"),
+            ("tool_log", "READ"), ("tool_log", "WRITE"),
+            ("shared_memory", "READ"),
+        ]
 
     seen: set[tuple[str, str]] = set()
     result = []

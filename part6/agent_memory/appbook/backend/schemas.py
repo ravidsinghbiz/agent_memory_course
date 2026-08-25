@@ -25,3 +25,17 @@ class ProceduralRequest(BaseModel):
 
 class CoordinationRequest(BaseModel):
     prompt: str
+
+
+class UnifiedMessageRequest(BaseModel):
+    session_id: str = Field(..., description="Client-generated unified memory lab id")
+    message: str
+
+
+class UnifiedCacheRequest(BaseModel):
+    session_id: str = Field(..., description="Client-generated unified memory lab id")
+    query: str
+
+
+class UnifiedSessionRequest(BaseModel):
+    session_id: str = Field(..., description="Client-generated unified memory lab id")

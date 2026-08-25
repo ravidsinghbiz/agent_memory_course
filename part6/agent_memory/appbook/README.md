@@ -3,7 +3,8 @@
 A FastAPI + vanilla-JS application that turns the
 [`agent_memory_zero_to_hero.ipynb`](../agent_memory_zero_to_hero.ipynb) workshop into an
 interactive, sleek (light/dark) web app. The sidebar is the **memory stack**: each layer adds
-one capability, climbing from a single conversation to a coordinating multi-agent team. It is
+one capability, climbing from a single conversation to a coordinating multi-agent team, then
+combining the complete stack in an observable final lab. It is
 powered by **MemoRizz 0.6** on **Oracle AI Database** with an exact-search
 filesystem fallback.
 
@@ -14,6 +15,23 @@ filesystem fallback.
 | 3 | **Knowledge Base** | `#/knowledge` | RAG over a `KnowledgeBase` (vector search) + a grounded, cited answer. |
 | 4 | **Procedural** | `#/procedural` | Tools + a recalled `WORKFLOW_MEMORY` runbook + first-class, lifecycle-aware `SKILLBOX` retrieval. |
 | 5 | **Coordination** | `#/coordination` | `SHARED_MEMORY`: a lead + Researcher + Reviewer collaborating, via `MultiAgentOrchestrator`. |
+| 6 | **Complete Stack** | `#/unified` | One chat with exact model-context capture plus standalone semantic-cache, summarization, and compaction units. It exposes all 13 `MemoryType` partitions, cache hits, summary/source IDs, and offloaded `TOOL_LOG` pointers. |
+
+Stage 6 is split into four focused units while retaining one scoped MemoRizz
+session:
+
+- **6.1 Unified Chat** captures the literal `messages` and `tools` payload sent
+  on every model iteration and maps each memory partition to `in context`,
+  `stored`, `runtime`, or `served turn`.
+- **6.2 Semantic Cache** runs the same fingerprint-stable request twice and
+  proves the second response skipped the model with
+  `semantic_cache_stats()` and `inspect_semantic_cache()` evidence.
+- **6.3 Summarization** calls `MemAgent.generate_summaries()` and displays each
+  generated summary ID, content, and exact `source_message_ids`.
+- **6.4 Compaction** shows the durable source rows linked to a summary and the
+  smaller effective context that results. Large deterministic diagnostic tool
+  output is independently offloaded through `ToolResultPolicy` and remains
+  expandable by its `tool_log_id`.
 
 A prominent **Memory Data Explorer** panel on the overview opens the persistent,
 resizable explorer that sits at the bottom of every page. It
@@ -48,9 +66,9 @@ uvicorn backend.main:app --reload --port 8000   # run from appbook/
 
 - **`OPENAI_API_KEY`** — required for generated answers (the LLM `gpt-5.6-luna` **and** the embeddings
   `text-embedding-3-small` @ 256d). Read from `appbook/.env`, or the
-  course's existing `../.env` / `../../.env`. Without it, health and local
-  retrieval still initialize with a deterministic teaching embedder, while
-  model-backed routes return a clear error.
+  course's existing `../.env` / `../../.env`. Without it, health and retrieval
+  still initialize on Oracle (or the filesystem fallback) with a deterministic
+  teaching embedder, while model-backed routes return a clear error.
 - **Oracle AI Database** — optional. Run
   `../../ai_maturity_form_factors/oracle.sh start` to provision the dedicated
   256-dimensional `MEMORIZZ` schema, then copy `.env.example` to `.env`. The app
@@ -77,7 +95,7 @@ appbook/
 │   │   ├── memory.py        the Memory Core: memorizz provider (Oracle→filesystem) + helpers
 │   │   ├── knowledge.py     the Acme Cloud corpus, ingested via KnowledgeBase
 │   │   └── sse.py           EventSourceResponse helper
-│   └── routers/             one per memory layer + health + data_explorer
+│   └── routers/             one per layer + unified lab + health + data_explorer
 └── frontend/                index.html · styles.css · app.js (no build step)
 ```
 

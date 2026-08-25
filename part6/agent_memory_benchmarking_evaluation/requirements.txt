@@ -1,0 +1,8 @@
+jupyter>=1.0
+nbclient>=0.10
+numpy>=1.26
+matplotlib>=3.8
+nest_asyncio>=1.6
+openai>=3.3,<4
+oracleagentmemory>=26.6,<27
+oracledb>=4.0

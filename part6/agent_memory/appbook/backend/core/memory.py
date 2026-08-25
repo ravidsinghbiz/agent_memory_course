@@ -2,8 +2,8 @@
 
 Mirrors the MemoRizz 0.6 notebooks: try Oracle AI Database; if it is disabled or
 unreachable, fall back to the filesystem provider. When no OpenAI key is set,
-the fallback uses a deterministic local embedder so health and retrieval remain
-inspectable even though model-backed answers are disabled.
+the memory provider uses a deterministic local embedder so health and retrieval
+remain inspectable even though model-backed answers are disabled.
 The active backend is reported to the UI via ``/api/health``.
 
 Also exposes small helpers used by every router:
@@ -94,7 +94,7 @@ class MemoryCore:
 
         provider, backend, err = None, None, None
 
-        if settings.oracle_enabled and settings.openai_api_key:
+        if settings.oracle_enabled:
             try:
                 from memorizz.memory_provider.oracle import OracleConfig, OracleProvider
 
@@ -111,6 +111,9 @@ class MemoryCore:
                     )
                 )
                 backend = "oracle"
+                if not settings.openai_api_key:
+                    err = ("OPENAI_API_KEY is unset; Oracle memory is using deterministic "
+                           "local embeddings and model-backed routes are disabled.")
             except Exception as exc:  # noqa: BLE001 — any failure → fall back
                 err = f"Oracle unavailable ({type(exc).__name__}); using filesystem fallback."
 
@@ -246,8 +249,9 @@ def unavailable_reason() -> str | None:
     Lets routers fail with a clean SSE ``error`` event instead of an HTTP 500.
     """
     if not settings.openai_api_key:
-        return ("OPENAI_API_KEY is not set, so the Memory Core can't embed or call the model. "
-                "Add it to appbook/.env (OPENAI_API_KEY=sk-...) and restart the server.")
+        return ("OPENAI_API_KEY is not set, so the Memory Core can't call the model. "
+                "Oracle/filesystem memory and deterministic local retrieval remain available. "
+                "Add the key to appbook/.env and restart the server to run generated answers.")
     return None
 
 

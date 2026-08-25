@@ -19,7 +19,16 @@ from fastapi.staticfiles import StaticFiles
 from backend.config import FRONTEND_DIR
 from backend.core.activity import activity, operations_for
 from backend.core.memory import store
-from backend.routers import conversation, coordination, data_explorer, knowledge, meta, procedural, semantic
+from backend.routers import (
+    conversation,
+    coordination,
+    data_explorer,
+    knowledge,
+    meta,
+    procedural,
+    semantic,
+    unified,
+)
 
 
 @asynccontextmanager
@@ -69,7 +78,7 @@ async def database_activity(request, call_next):
 
 
 for r in (meta.router, data_explorer.router, conversation.router, semantic.router,
-          knowledge.router, procedural.router, coordination.router):
+          knowledge.router, procedural.router, coordination.router, unified.router):
     app.include_router(r)
 
 # Serve the SPA last so the API routes win.

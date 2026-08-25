@@ -25,6 +25,9 @@ const I = {
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 9 17.5 20 6.5"/></svg>',
   alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>',
   db: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>',
+  cache: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7.5C4 5.6 7.6 4 12 4s8 1.6 8 3.5S16.4 11 12 11 4 9.4 4 7.5Z"/><path d="M4 7.5V12c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V7.5M4 12v4.5c0 1.9 3.6 3.5 8 3.5s8-1.6 8-3.5V12"/><path d="m15.7 6.2-2.2 2.6-1.1-1.1"/></svg>',
+  compress: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v5H3M16 3v5h5M8 21v-5H3M16 21v-5h5"/><path d="m3 8 6-6M21 8l-6-6M3 16l6 6M21 16l-6 6"/><rect x="8" y="8" width="8" height="8" rx="2"/></svg>',
+  window: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 9v11"/><path d="M5.5 6.5h.01M8 6.5h.01"/></svg>',
   menu: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   collapse: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 6-6 6 6 6"/></svg>',
   expand: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9.5 6 6 6-6 6"/></svg>',
@@ -66,6 +69,13 @@ const FF = [
     desc: "The top layer: a lead orchestrator delegates to a Researcher and a Reviewer that collaborate over a shared blackboard, then the lead synthesizes one recommendation. Built on memorizz's MultiAgentOrchestrator.",
     term: "<b>Shared memory</b> (<code>SHARED_MEMORY</code>): a blackboard multiple agents read and write — commands, reports, artifacts — so a team can coordinate with a common trail.",
     meta: { Type: "Social", Store: "SHARED_MEMORY", Agents: "Lead + 2" },
+  },
+  {
+    id: "unified", rung: 6, nav: "Complete Stack", icon: I.stack, accent: "var(--r6)",
+    title: "The Complete Agent Memory Stack", kicker: "Stage 06 — Observe the whole system",
+    desc: "One production-shaped chat combines every memory partition, then exposes the exact model context, semantic-cache decisions, generated summary IDs, compacted source messages, and offloaded tool-result pointers for every turn.",
+    term: "<b>Effective context</b> is the literal message set sent to the model — not everything stored. This lab separates durable memory, retrieved memory, response reuse, and context compaction so you can inspect each boundary.",
+    meta: { Type: "Integrated", Store: "All 13 partitions", Evidence: "Per turn" },
   },
 ];
 const FF_BY_ID = Object.fromEntries(FF.map((f) => [f.id, f]));
@@ -126,12 +136,20 @@ async function streamSSE(url, body, onEvent, signal) {
 }
 
 async function getJSON(url) { const r = await fetch(url); return r.json(); }
+async function postJSON(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  let data = {}; try { data = await r.json(); } catch (_) {}
+  if (!r.ok) throw new Error(data.detail || data.message || `HTTP ${r.status}`);
+  return data;
+}
 
 // ── app state ──────────────────────────────────────────────────────────
 const state = {
   health: null,
   session: uid(),     // shared conversation id for stateful layers
   abort: null,
+  unifiedSnapshot: null,
+  unifiedUnit: "chat",
 };
 const explorerState = {
   tables: [], selected: null, result: null, offset: 0, limit: 40,
@@ -158,7 +176,7 @@ function renderSidebar(activeId) {
   $("#sidebar").innerHTML = `
     <div class="brand">
       <span class="brand-glyph">${I.stack}</span>
-      <span class="brand-text"><b>Memory Stack</b><span>Five layers of agent memory</span></span>
+      <span class="brand-text"><b>Memory Stack</b><span>Six observable stages</span></span>
       <button class="sidebar-toggle" id="sidebar-toggle" type="button" aria-controls="sidebar-nav"></button>
     </div>
     <div class="rail-label">The Stack</div>
@@ -266,7 +284,7 @@ function viewHome() {
     <section class="hero">
       <div class="hero-kicker"><span class="pip"></span> The Agent Memory Stack</div>
       <h1>Grow an agent from a goldfish into a colleague — <em>one memory layer at a time</em>.</h1>
-      <p>One copilot — <b>Memo</b>, for a fictional <b>Acme Cloud</b> platform team — built up across five layers of memory with the <b>memorizz</b> framework on <b>Oracle AI Database</b> (with a filesystem fallback). Each layer adds exactly one capability the layer below was missing.</p>
+      <p>One copilot — <b>Memo</b>, for a fictional <b>Acme Cloud</b> platform team — built up across five memory layers, then assembled into one observable final system with the <b>memorizz</b> framework on <b>Oracle AI Database</b> (with a filesystem fallback). Each stage adds a capability the stage below was missing.</p>
     </section>
     <section class="home-explorer" aria-labelledby="home-explorer-title">
       <div class="home-explorer-mark">${I.db}</div>
@@ -634,6 +652,326 @@ function viewCoordination() {
   }
   run.addEventListener("click", runCo);
   autosize(input);
+}
+
+// ── view: complete stack (Stage 6) ───────────────────────────────────────
+const UNIFIED_SAMPLES = [
+  "I'm Ada and I own retrieval-api. Remember that for later.",
+  "What does Acme Cloud say about API rate limits on the Pro plan?",
+  "Inspect retrieval-api health and explain the diagnostic evidence.",
+  "What do you remember about me, my service, and our incident procedure?",
+];
+
+function viewUnified() {
+  const f = FF_BY_ID.unified;
+  setStage(`${ffHeader(f)}
+    <div class="u-session-strip">
+      <span><i class="dot pulse" id="u-ready-dot"></i><b id="u-ready-label">Preparing MemoRizz session…</b></span>
+      <span class="mono" id="u-scope">session ${esc(state.session.slice(0, 10))}</span>
+      <span class="mono" id="u-backend">${esc(backendLabel())}</span>
+    </div>
+    <nav class="u-units" aria-label="Complete stack learning units">
+      <button class="u-unit active" data-u-tab="chat"><b>6.1</b>${I.chat}<span>Unified Chat</span></button>
+      <button class="u-unit" data-u-tab="cache"><b>6.2</b>${I.cache}<span>Semantic Cache</span></button>
+      <button class="u-unit" data-u-tab="summary"><b>6.3</b>${I.stack}<span>Summarization</span></button>
+      <button class="u-unit" data-u-tab="compaction"><b>6.4</b>${I.compress}<span>Compaction</span></button>
+    </nav>
+
+    <section class="u-unit-panel active" data-u-panel="chat">
+      <div class="u-lesson-note">
+        <b>One chat, four evidence boundaries.</b> Every turn shows the literal model messages,
+        which of MemoRizz's 13 memory partitions contributed, whether the model was skipped by
+        semantic cache, and which large results or old turns moved out of the active window.
+      </div>
+      <div class="u-chat-grid">
+        <div class="panel u-chat-panel">
+          <div class="panel-head">
+            <span class="panel-title">${I.chat} Memo · integrated memory</span>
+            <div class="row">
+              <button class="btn btn-ghost u-summarize" data-summary-target="summary">${I.compress} Summarize now</button>
+              <button class="btn btn-ghost" id="u-new">${I.refresh} New handle</button>
+            </div>
+          </div>
+          <div class="panel-body u-chat-body">
+            <div class="u-chat-scroll" id="u-chat-scroll">
+              <div class="empty">Use the prompts in order: create a durable entity, retrieve knowledge, call a tool large enough to offload, then test recall.</div>
+            </div>
+            <div class="chips u-prompt-chips">${UNIFIED_SAMPLES.map((sample, i) => `<button class="chip" data-u-sample="${i}">${i + 1}. ${esc(sample.slice(0, 38))}…</button>`).join("")}</div>
+            <div class="u-run-status" id="u-run-status">idle</div>
+            <div class="composer">
+              <textarea id="u-input" rows="1" placeholder="Ask Memo — every memory decision will be exposed…"></textarea>
+              <button class="btn btn-accent" id="u-send">${I.send} Send</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel u-evidence-panel">
+          <div class="panel-head"><span class="panel-title">${I.window} Turn evidence</span><span class="hint mono" id="u-turn-label">No turn yet</span></div>
+          <div class="u-evidence-scroll">
+            <div class="u-metrics" id="u-live-metrics"><div class="empty">Loading memory telemetry…</div></div>
+            <section class="u-evidence-section">
+              <div class="u-section-title"><span>Effective context window</span><em>exact provider input</em></div>
+              <div id="u-context-inspector"><div class="empty">Run a turn to inspect every model call and message.</div></div>
+            </section>
+            <section class="u-evidence-section">
+              <div class="u-section-title"><span>Memory types this turn</span><em>stored ≠ injected</em></div>
+              <div id="u-memory-inventory"><div class="empty">Memory partitions will appear here.</div></div>
+            </section>
+            <section class="u-evidence-section">
+              <div class="u-section-title"><span>Offloaded & compacted IDs</span><em>progressive disclosure</em></div>
+              <div id="u-artifacts"><div class="empty">No summary or tool-log IDs yet.</div></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="u-unit-panel" data-u-panel="cache">
+      <div class="u-unit-intro">
+        <div class="u-unit-icon">${I.cache}</div>
+        <div><span class="mono">UNIT 6.2 · RESPONSE REUSE</span><h2>Semantic Cache</h2>
+        <p>MemoRizz embeds the query and requires matching session, user, prompt, tool schema,
+        data version, and request-context fingerprints. Run the same stable request twice: the
+        first call writes a response; the second returns it without calling the model.</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">${I.cache} Controlled A/B run</span><span class="hint">same query · same scope · two turns</span></div>
+        <div class="panel-body">
+          <div class="field"><textarea id="u-cache-query" rows="2">What is the Pro plan API rate limit?</textarea><button class="btn btn-accent" id="u-cache-run">${I.play} Run twice</button></div>
+          <div id="u-cache-result" class="u-unit-result"><div class="empty">Run the experiment to compare a cache miss with a proven hit.</div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="u-unit-panel" data-u-panel="summary">
+      <div class="u-unit-intro">
+        <div class="u-unit-icon">${I.stack}</div>
+        <div><span class="mono">UNIT 6.3 · MEMORY CONSOLIDATION</span><h2>Summarization</h2>
+        <p><code>MemAgent.generate_summaries()</code> asks the configured OpenAI model to compress
+        unsummarized conversation rows. MemoRizz stores the result in <code>SUMMARIES</code> with its
+        own ID, period, count, and exact <code>source_message_ids</code>.</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">${I.stack} Summary registry</span><button class="btn btn-accent u-summarize" data-summary-target="summary">${I.compress} Generate summaries</button></div>
+        <div class="panel-body"><div id="u-summary-result" class="u-unit-result"><div class="empty">Create a few chat turns, then generate a real MemoRizz summary.</div></div></div>
+      </div>
+    </section>
+
+    <section class="u-unit-panel" data-u-panel="compaction">
+      <div class="u-unit-intro">
+        <div class="u-unit-icon">${I.compress}</div>
+        <div><span class="mono">UNIT 6.4 · CONTEXT CONTROL</span><h2>Compaction</h2>
+        <p>Compaction is the boundary after summarization: source rows remain durable and auditable,
+        but their new <code>summary_id</code> links let MemoRizz exclude them from active conversation
+        history and inject the much smaller summary reference instead.</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="panel-title">${I.compress} Before → summary → active window</span><button class="btn btn-accent u-summarize" data-summary-target="compaction">${I.compress} Summarize & compact</button></div>
+        <div class="panel-body">
+          <div id="u-compaction-result" class="u-unit-result"><div class="empty">Compacted source-message links and context effects appear here.</div></div>
+          <div id="u-compaction-map" class="u-compaction-map"></div>
+        </div>
+      </div>
+    </section>`, f.accent);
+  $(".view").classList.add("wide", "unified-view");
+
+  $$(".u-unit").forEach((button) => button.addEventListener("click", () => activateUnifiedUnit(button.dataset.uTab)));
+  const input = $("#u-input"), send = $("#u-send"), scroll = $("#u-chat-scroll");
+  $$("[data-u-sample]").forEach((button) => button.addEventListener("click", () => {
+    input.value = UNIFIED_SAMPLES[Number(button.dataset.uSample)]; autosize(input); input.focus();
+  }));
+
+  async function sendMessage() {
+    const message = input.value.trim(); if (!message || state.abort) return;
+    addMsg(scroll, "user", message); input.value = ""; autosize(input);
+    const bubble = addMsg(scroll, "bot", ""); bubble.innerHTML = '<span class="caret"></span>';
+    send.disabled = true; let acc = ""; state.abort = new AbortController();
+    try {
+      await streamSSE("/api/unified/message", { session_id: state.session, message }, (ev) => {
+        if (ev.type === "phase") $("#u-run-status").textContent = ev.label || ev.phase;
+        else if (ev.type === "delta") { acc += ev.text; bubble.innerHTML = renderRich(acc) + '<span class="caret"></span>'; scroll.scrollTop = scroll.scrollHeight; }
+        else if (ev.type === "snapshot") { state.unifiedSnapshot = ev.snapshot; renderUnifiedSnapshot(ev.snapshot); }
+        else if (ev.type === "final") { bubble.innerHTML = renderRich(acc || ev.reply || ""); $("#u-run-status").textContent = "turn complete · evidence captured"; }
+        else if (ev.type === "error") { bubble.innerHTML = `<span style="color:var(--r5)">${esc(ev.message)}</span>`; }
+      }, state.abort.signal);
+    } catch (error) { bubble.innerHTML = `<span style="color:var(--r5)">Error: ${esc(error.message)}</span>`; }
+    finally { state.abort = null; send.disabled = false; input.focus(); }
+  }
+  send.addEventListener("click", sendMessage);
+  input.addEventListener("keydown", (event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); sendMessage(); } });
+  input.addEventListener("input", () => autosize(input));
+  $("#u-cache-run").addEventListener("click", runUnifiedCacheLab);
+  $$(".u-summarize").forEach((button) => button.addEventListener("click", () => runUnifiedSummaries(button.dataset.summaryTarget)));
+  $("#u-new").addEventListener("click", async () => {
+    cancelStream(); await postJSON("/api/unified/reset", { session_id: state.session }).catch(() => {});
+    state.session = uid(); state.unifiedSnapshot = null; viewUnified();
+  });
+  activateUnifiedUnit(state.unifiedUnit || "chat");
+  loadUnifiedState();
+}
+
+function activateUnifiedUnit(unit) {
+  state.unifiedUnit = unit;
+  $$(".u-unit").forEach((button) => button.classList.toggle("active", button.dataset.uTab === unit));
+  $$(".u-unit-panel").forEach((panel) => panel.classList.toggle("active", panel.dataset.uPanel === unit));
+}
+
+async function loadUnifiedState() {
+  try {
+    const data = await getJSON(`/api/unified/state?session_id=${encodeURIComponent(state.session)}`);
+    if (!data.ready) throw new Error(data.message || "Memory session is not ready");
+    state.unifiedSnapshot = data.snapshot; renderUnifiedSnapshot(data.snapshot);
+    const dot = $("#u-ready-dot"); if (dot) dot.className = "dot ok";
+    if ($("#u-ready-label")) $("#u-ready-label").textContent = "MemoRizz session ready";
+  } catch (error) {
+    const dot = $("#u-ready-dot"); if (dot) dot.className = "dot warn";
+    if ($("#u-ready-label")) $("#u-ready-label").textContent = `Setup failed · ${error.message}`;
+  }
+}
+
+function unifiedMetric(label, value, tone = "") {
+  return `<div class="u-metric ${tone}"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;
+}
+
+function prettyJSON(value) {
+  try { return JSON.stringify(value, null, 2); } catch (_) { return String(value ?? ""); }
+}
+
+function renderExactCall(call, index, total) {
+  const messages = call.messages || [], tools = call.tools || [];
+  const messageHTML = messages.map((message, messageIndex) => `
+    <div class="u-exact-message role-${esc(message.role || "unknown")}">
+      <div class="u-exact-head"><span>${esc(message.role || "message")}</span><em>message ${messageIndex + 1}</em></div>
+      <pre>${esc(typeof message.content === "string" ? message.content : prettyJSON(message.content))}</pre>
+      ${message.tool_calls ? `<details><summary>Tool calls</summary><pre>${esc(prettyJSON(message.tool_calls))}</pre></details>` : ""}
+    </div>`).join("");
+  return `<details class="u-model-call" ${index === total - 1 ? "open" : ""}>
+    <summary><span>Model call ${index + 1}</span><em>${messages.length} messages · ${tools.length} tool schemas</em></summary>
+    <div class="u-call-body">${messageHTML}
+      <div class="u-exact-message role-tools"><div class="u-exact-head"><span>tools parameter</span><em>exact schemas</em></div><pre>${esc(prettyJSON(tools))}</pre></div>
+    </div>
+  </details>`;
+}
+
+function renderMemoryType(memory) {
+  const statusClass = /in context|served|pointer|active|captured/.test(memory.status || "") ? "hot" : "";
+  return `<details class="u-memory-card ${statusClass}">
+    <summary><span class="u-memory-name"><i></i>${esc(memory.label)}</span><span class="u-memory-status">${esc(memory.status)}</span><b>${Number(memory.count || 0)}</b></summary>
+    <div class="u-memory-body"><p>${esc(memory.description || "")}</p><pre>${esc(prettyJSON(memory.items || []))}</pre></div>
+  </details>`;
+}
+
+function idChips(values, emptyLabel) {
+  const list = (values || []).filter(Boolean);
+  if (!list.length) return `<span class="muted">${esc(emptyLabel)}</span>`;
+  return `<div class="u-id-list">${list.map((value) => `<code title="${esc(value)}">${esc(String(value))}</code>`).join("")}</div>`;
+}
+
+function renderUnifiedSnapshot(snapshot) {
+  if (!snapshot || !$("#u-live-metrics")) return;
+  const context = snapshot.context || {}, cache = snapshot.cache || {}, stats = context.window_stats || {};
+  const calls = context.calls || [], prompt = stats.prompt_tokens || stats.total_tokens || 0;
+  $("#u-turn-label").textContent = snapshot.turn ? `turn ${snapshot.turn}` : "session initialized";
+  $("#u-scope").textContent = `${snapshot.scope?.memory_id || "memory scope"} · ${snapshot.scope?.thread_id || "thread"}`;
+  $("#u-backend").textContent = snapshot.backend === "oracle" ? "Oracle AI Database" : snapshot.backend || "memory provider";
+  $("#u-live-metrics").innerHTML = [
+    unifiedMetric("Cache", cache.hit ? "HIT" : (calls.length ? "MISS" : "IDLE"), cache.hit ? "good" : ""),
+    unifiedMetric("Model calls", String(context.model_call_count || 0), context.model_called ? "" : cache.hit ? "good" : ""),
+    unifiedMetric("Prompt tokens", Number(prompt).toLocaleString()),
+    unifiedMetric("Memory types", `${(snapshot.memory_types || []).length} active`),
+  ].join("");
+
+  const exact = $("#u-context-inspector");
+  if (cache.hit && !context.model_called) {
+    exact.innerHTML = `<div class="u-cache-skip">${I.check}<div><b>Model call skipped</b><p>MemoRizz served this turn from semantic cache. There is no fabricated prompt to show because no provider request was made.</p></div></div>`;
+  } else if (!calls.length) {
+    exact.innerHTML = `<div class="empty">No model call has been captured yet.</div>`;
+  } else {
+    const windowSize = Number(stats.context_window_tokens || 128000), used = Number(prompt || 0), pct = Math.min(100, used / windowSize * 100);
+    exact.innerHTML = `<div class="u-window-readout"><span><b>${used.toLocaleString()}</b> / ${windowSize.toLocaleString()} tokens</span><em>${pct.toFixed(2)}%</em></div>
+      <div class="u-window-track"><i style="width:${pct}%"></i></div>
+      <p class="hint">Each expandable call below is the exact <code>messages</code> and <code>tools</code> payload captured at the model boundary. Tool loops produce more than one call.</p>
+      ${calls.map((call, index) => renderExactCall(call, index, calls.length)).join("")}`;
+  }
+  $("#u-memory-inventory").innerHTML = (snapshot.memory_types || []).map(renderMemoryType).join("") || `<div class="empty">No memory inventory.</div>`;
+  $("#u-artifacts").innerHTML = `
+    <div class="u-artifact"><span>Summary IDs</span>${idChips(snapshot.summary_ids, "No summaries yet")}</div>
+    <div class="u-artifact"><span>Compacted source IDs</span>${idChips(snapshot.compacted_source_ids, "No source messages compacted")}</div>
+    <div class="u-artifact"><span>Offloaded tool-log IDs</span>${idChips(snapshot.offloaded_tool_log_ids, "No large tool results offloaded")}</div>
+    <div class="u-cache-line"><b>semantic cache</b><span>${Number(cache.hits || 0)} hits · ${Number(cache.misses || 0)} misses · ${Number(cache.writes || 0)} writes · ${Number(cache.size || 0)} entries</span></div>`;
+  renderSummaryRegistry(snapshot);
+  renderCompactionMap(snapshot);
+}
+
+async function runUnifiedCacheLab() {
+  const button = $("#u-cache-run"), box = $("#u-cache-result"), query = $("#u-cache-query").value.trim();
+  if (!query || button.disabled) return;
+  button.disabled = true; box.innerHTML = `<div class="empty"><span class="spinner" style="display:inline-block"></span> running the miss, then the identical lookup…</div>`;
+  try {
+    const data = await postJSON("/api/unified/cache/run", { session_id: state.session, query });
+    if (!data.ok) throw new Error(data.message || "Cache experiment failed");
+    const first = data.first?.snapshot || {}, second = data.second?.snapshot || {}, proof = data.proof || {};
+    const inspection = second.cache?.inspection || {};
+    box.innerHTML = `<div class="u-proof-grid">
+      <div class="u-proof miss"><span>First turn</span><b>MISS</b><p>${proof.first_model_called ? "Model called and response written" : "No model call captured"}</p></div>
+      <div class="u-proof-arrow">→</div>
+      <div class="u-proof hit"><span>Second turn</span><b>${proof.second_cache_hit ? "HIT" : "MISS"}</b><p>${proof.second_model_called ? "Model called again" : "Model skipped — cached response served"}</p></div>
+    </div>
+    <div class="u-cache-comparison"><div><span>First answer</span>${renderRich(data.first?.reply || "")}</div><div><span>Second answer</span>${renderRich(data.second?.reply || "")}</div></div>
+    <details class="u-json-proof" open><summary>Cache-match evidence</summary><pre>${esc(prettyJSON(inspection))}</pre></details>`;
+    state.unifiedSnapshot = second; renderUnifiedSnapshot(second);
+  } catch (error) { box.innerHTML = `<div class="banner warn">${I.alert}<div>${esc(error.message)}</div></div>`; }
+  finally { button.disabled = false; }
+}
+
+async function runUnifiedSummaries(target = "summary") {
+  const buttons = $$(".u-summarize"); buttons.forEach((button) => button.disabled = true);
+  const statusBoxes = [$("#u-summary-result"), $("#u-compaction-result")].filter(Boolean);
+  statusBoxes.forEach((box) => box.innerHTML = `<div class="empty"><span class="spinner" style="display:inline-block"></span> MemoRizz is summarizing scoped conversation rows…</div>`);
+  try {
+    const data = await postJSON("/api/unified/summarize", { session_id: state.session });
+    if (!data.ok) throw new Error(data.message || "Summary generation failed");
+    state.unifiedSnapshot = data.snapshot; renderUnifiedSnapshot(data.snapshot);
+    const created = data.created_summary_ids || [];
+    const outcomeHTML = `<div class="u-summary-outcome ${created.length ? "created" : "idle"}">
+      <b>${created.length ? `${created.length} summary record${created.length === 1 ? "" : "s"} created` : "Nothing new to summarize"}</b>
+      <p>${created.length ? `${data.compacted_count} source messages were linked atomically.` : "All eligible rows in this scoped thread already have summary links."}</p>
+      ${idChips(created, "No new summary IDs")}</div>`;
+    renderSummaryRegistry(data.snapshot, outcomeHTML);
+    $("#u-compaction-result").innerHTML = `<div class="u-before-after">
+      <div><span>Before</span><b>${Number(data.before?.unsummarized || 0)}</b><em>unsummarized rows</em></div>
+      <i>${I.arrow}</i>
+      <div><span>After</span><b>${Number(data.after?.unsummarized || 0)}</b><em>unsummarized rows</em></div>
+      <i>${I.arrow}</i>
+      <div class="hot"><span>Compacted</span><b>${Number(data.compacted_count || 0)}</b><em>source links</em></div>
+    </div>`;
+    activateUnifiedUnit(target);
+  } catch (error) { statusBoxes.forEach((box) => box.innerHTML = `<div class="banner warn">${I.alert}<div>${esc(error.message)}</div></div>`); }
+  finally { buttons.forEach((button) => button.disabled = false); }
+}
+
+function renderSummaryRegistry(snapshot, prefixHTML = "") {
+  const box = $("#u-summary-result"); if (!box) return;
+  if (!prefixHTML && box.querySelector(".spinner")) return;
+  const summaries = snapshot.summaries || [];
+  if (!summaries.length) { box.innerHTML = prefixHTML || `<div class="empty">No summaries yet. Chat first, then generate one.</div>`; return; }
+  box.innerHTML = `${prefixHTML}<div class="u-summary-list">${summaries.map((summary) => `
+    <details class="u-summary-record"><summary><span>${esc(summary.summary_id || "summary")}</span><b>${Number(summary.memory_units_count || (summary.source_message_ids || []).length)} sources</b></summary>
+      <div><p>${esc(summary.content || "")}</p><span class="mono">source_message_ids</span>${idChips(summary.source_message_ids, "No source IDs")}</div>
+    </details>`).join("")}</div>`;
+}
+
+function renderCompactionMap(snapshot) {
+  const box = $("#u-compaction-map"); if (!box) return;
+  const sourceIds = snapshot.compacted_source_ids || [], summaryIds = snapshot.summary_ids || [];
+  if (!summaryIds.length) { box.innerHTML = `<div class="empty">The source → summary → context map appears after summarization.</div>`; return; }
+  box.innerHTML = `<div class="u-compact-flow">
+    <div><span>Durable source rows</span><b>${sourceIds.length}</b><small>preserved in CONVERSATION_MEMORY</small>${idChips(sourceIds.slice(0, 8), "—")}</div>
+    <i>${I.arrow}</i>
+    <div class="hot"><span>Summary registry</span><b>${summaryIds.length}</b><small>source-linked SUMMARIES rows</small>${idChips(summaryIds, "—")}</div>
+    <i>${I.arrow}</i>
+    <div><span>Effective context</span><b>smaller</b><small>summary references replace linked turns</small></div>
+  </div>`;
 }
 
 // ── agent log (kept for completeness) ────────────────────────────────────
@@ -1065,6 +1403,7 @@ function initializeDataExplorer(storageKey) {
 const ROUTES = {
   "": viewHome, conversation: viewConversation, semantic: viewSemantic,
   knowledge: viewKnowledge, procedural: viewProcedural, coordination: viewCoordination,
+  unified: viewUnified,
 };
 function route() {
   cancelStream();

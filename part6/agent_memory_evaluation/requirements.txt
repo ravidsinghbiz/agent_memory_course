@@ -1,0 +1,6 @@
+jupyter>=1.0
+nbclient>=0.10
+numpy>=1.26
+pandas>=2.1
+matplotlib>=3.8
+memorizz[filesystem]>=0.6.3,<0.7
