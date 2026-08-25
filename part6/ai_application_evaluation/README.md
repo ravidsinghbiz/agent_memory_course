@@ -41,6 +41,10 @@ Documents and queries are embedded during execution, searched in Oracle, and
 graded with recall, MRR, nDCG, and latency. No precomputed vectors or saved model
 responses are used.
 
+Rendered Matplotlib dashboards make the live evidence easier to compare: ranking
+quality versus retrieval latency, input/output tokens versus configured cost,
+form-factor pass rates, and every observed release gate against its threshold.
+
 ## Inspect the LangSmith evidence
 
 The stable tracing project is `agent-memory-course-ai-application-evaluation`.

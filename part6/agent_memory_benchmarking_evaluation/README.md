@@ -26,6 +26,11 @@ compaction usage, and offline Oracle memory extraction/retrieval. Token counts
 come from OpenAI `response.usage`; the notebook does not use the reference
 `chars/4` estimate.
 
+Six inline Matplotlib figures are saved with the executed notebook: the five
+detailed token, latency, and judge charts from the reference evaluation plus a
+four-panel executive dashboard that combines token boundaries, cache share,
+latency percentiles, and judge outcomes.
+
 ## Saved live run
 
 The saved execution completed 24 of the preserved 80 turns. Twenty-four reaches

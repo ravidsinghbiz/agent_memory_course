@@ -53,6 +53,9 @@ backend, agent-SDK availability, and LangSmith status are shown in the bottom-le
 
 - **FF4 / FF5 need the `claude` CLI** on PATH (`npm i -g @anthropic-ai/claude-code`). Without it,
   those two pages report the SDK as unavailable; FF1–FF3 and the BEIR bake-off still work.
+- The Claude Agent SDK currently requires **MCP 1.x**. The appbook pins
+  `mcp>=1.23,<2`; MCP 2.x causes `create_sdk_mcp_server(...)` to fail before an
+  agent turn begins.
 - **BEIR** loads the precomputed corpus + 768-dim vectors from
   `../notebook/data/beir_scifact_seed.npz` (skipping the ~11-minute embed) and pulls the tiny
   queries + qrels from the Hugging Face Hub. Retrieval for the bake-off runs in-memory over the

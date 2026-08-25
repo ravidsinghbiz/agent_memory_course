@@ -168,8 +168,9 @@ async def stream_agent_eval() -> AsyncIterator[dict]:
 # ──────────────────────────────────────────────────────────────────────────────
 BUILDER_SYSTEM = ("You are an automation engineer. Build the smallest correct, reusable solution, "
                   "then verify it runs on every input you are given. Work ONLY inside your current "
-                  "working directory: never `cd` to another directory and never search the wider "
-                  "filesystem — every file you need is already in the current directory.")
+                  "working directory. Run pwd first and use that absolute directory whenever a file "
+                  "tool requires an absolute path; never write outside it or search the wider "
+                  "filesystem.")
 
 # Fixed synthetic tickets with KNOWN labels → exact, reproducible ground truth.
 TICKETS = [
@@ -185,10 +186,10 @@ TICKETS = [
 
 BUILD_PROMPT = (
     "You are building a reusable automation in your CURRENT working directory. Start by running "
-    "`ls` — it already contains exactly two CSV files, `tickets_batch1.csv` and `tickets_batch2.csv`, "
-    "each with columns id,category,priority,message. Do ALL of your work right here. Refer to every "
-    "file by its PLAIN RELATIVE NAME only (e.g. `triage.py`, `tickets_batch1.csv`, `report_batch1.json`) "
-    "— never use an absolute path, never include any directory, and never `cd` anywhere.\n"
+    "`pwd && ls -la` — it already contains exactly two CSV files, `tickets_batch1.csv` and "
+    "`tickets_batch2.csv`, each with columns id,category,priority,message. Do ALL work right here. "
+    "Use the absolute directory returned by `pwd` whenever Read, Write, or Edit requires an absolute "
+    "path; never use any other directory and never `cd` elsewhere.\n"
     "1. Write a minimal, well-documented Python CLI `triage.py` (standard library only) that:\n"
     "   - accepts `--input <path>` and `--output <path>` (default `report.json`);\n"
     "   - computes two breakdowns -- messages per category and per priority -- each sorted by count descending;\n"
@@ -198,7 +199,8 @@ BUILD_PROMPT = (
     "2. Run it on the first batch:  python triage.py --input tickets_batch1.csv --output report_batch1.json\n"
     "3. Then prove it re-runs on NEW data:  python triage.py --input tickets_batch2.csv --output report_batch2.json\n"
     "4. If anything errors, fix it and re-run until both batches succeed.\n"
-    "5. Confirm what you built and show both report files."
+    "5. Before finishing, run `test -f triage.py && test -f report_batch1.json && "
+    "test -f report_batch2.json`, inspect both reports, and only then confirm what you built."
 )
 
 FF5_METRICS = ["runs_clean", "functional_correctness", "code_quality"]

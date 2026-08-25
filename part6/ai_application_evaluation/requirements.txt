@@ -2,6 +2,7 @@ jupyter>=1.0
 nbclient>=0.10
 numpy>=1.26
 pandas>=2.1
+matplotlib>=3.8
 anthropic>=0.49
 openai>=1.100
 oracledb>=3.4

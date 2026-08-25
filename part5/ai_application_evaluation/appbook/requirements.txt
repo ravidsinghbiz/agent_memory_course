@@ -10,5 +10,6 @@ pandas>=2.0
 fastembed>=0.8            # torch-free ONNX embeddings (nomic, 768-dim) for retrieval
 oracledb>=3.0            # optional — retrieval falls back to in-memory if absent/unreachable
 claude-agent-sdk>=0.2     # FF4 agent + FF5 autonomous agent (also needs the `claude` CLI on PATH)
+mcp>=1.23,<2              # claude-agent-sdk 0.2.x uses the MCP 1.x Server decorator API
 datasets>=2.18            # BEIR scifact queries + qrels (the corpus/vectors come from the seed .npz)
 langsmith>=0.4            # optional — uploads each evaluation as a versioned experiment
